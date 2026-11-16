@@ -1,0 +1,36 @@
+name: Build and test Docker image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Le build télécharge le dernier modèle depuis DagsHub (MLflow) avec le secret DAGSHUB_TOKEN
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: digits-api:latest
+          secrets: |
+            dagshub_token=${{ secrets.DAGSHUB_TOKEN }}
+
+      - name: Run container and test /predict
+        run: |
+          docker run -d --name api -p 8000:8000 digits-api:latest
+          for i in $(seq 1 30); do
+            curl -sf -X POST localhost:8000/predict -H 'Content-Type: application/json' \
+              -d "{\"features\": [$(python3 -c 'print(",".join(["0"]*64))')]}" && break
+            sleep 2
+          done
+          curl -sf -X POST localhost:8000/predict -H 'Content-Type: application/json' \
+            -d "{\"features\": [$(python3 -c 'print(",".join(["0"]*64))')]}"

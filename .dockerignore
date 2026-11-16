@@ -1,0 +1,6 @@
+.venv
+.git
+.dvc
+data
+mlruns
+*.ipynb
